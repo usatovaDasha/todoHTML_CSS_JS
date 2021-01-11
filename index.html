@@ -5,15 +5,15 @@
     <link rel = "stylesheet" type = "text/css" href = "style.css" />
     <script src="script.js"></script>
   </head>
-
   <body>
-    <div class="page-content">
-      <h1>To-do List</h1>
-      <div class="main-controls-container">
-        <input type="text" id="main_input_task" class="main-input"/>
-        <button onclick={addNewTask()}>Add new Task</button>
+    <div class="main-elements-control">
+      <h1>To-do lists</h1>
+      <div>
+        <input type='text' id="add-task">
+        <button onclick="onClickButton()">Add</button>
       </div>
-      <div id="block-content-tasks"></div>
     </div>
+    
+    <div id="content-page"></div>
   </body>
 </html>

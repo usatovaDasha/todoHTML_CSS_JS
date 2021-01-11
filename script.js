@@ -1,107 +1,153 @@
+let allTasks = JSON.parse(localStorage.getItem('tasks')) || [];
+let valueInput = '';
 let input = null;
-let arrayValues = [];
-// let arrayValues = JSON.parse(localStorage.getItem('tasks')) || [];
-let value = '';
-let activeTaskEdit = null;
+let activeEditTask = null;
 
-window.onload = function initPage() {
-  input = document.getElementById('main_input_task')
-  input.addEventListener('change', changeValue);
+window.onload = async function init() {
+  input = document.getElementById('add-task');
+  input.addEventListener('change', updateValue);
+  const response = await fetch('http://localhost:8000/allTasks', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json;charset=utf-8',
+      'Access-Control-Allow-Origin': '*'
+    },
+  });
+  let result = await response.json();
+  allTasks = result.data;
   render();
 }
 
-function render() {
-  const parentBlock = document.getElementById('block-content-tasks');
-  while (parentBlock.firstChild) {
-    parentBlock.removeChild(parentBlock.firstChild);
+onClickButton = async () => {
+  allTasks.push({
+    text: valueInput,
+    isCheck: false
+  });
+  await fetch('http://localhost:8000/createTask', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json;charset=utf-8',
+      'Access-Control-Allow-Origin': '*'
+    },
+    body: JSON.stringify({
+      text: valueInput,
+      isCheck: false
+    })
+  });
+  localStorage.setItem('tasks', JSON.stringify(allTasks));
+  valueInput = '';
+  input.value = '';
+  render();
+}
+
+updateValue = (event) => {
+  valueInput = event.target.value;
+}
+
+render = () => {
+  const content = document.getElementById('content-page');
+  while(content.firstChild) {
+    content.removeChild(content.firstChild);
   }
-
-  arrayValues.map((task, index) => {
-    const taskBlock = document.createElement('div');
-    taskBlock.id = `task-container-${index}`;
-    taskBlock.className = 'task-container';
-
+  allTasks.sort((a, b) => a.isCheck > b.isCheck ? 1 : a.isCheck < b.isCheck ? -1 : 0);
+  allTasks.map((item, index) => {
+    const container = document.createElement('div');
+    container.id = `task-${index}`;
+    container.className = 'task-container';
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
-    checkbox.checked = task.isCheck;
-    checkbox.onclick = function() {
-      changeCheckbox(index);
-    }
-    taskBlock.appendChild(checkbox);
+    checkbox.checked = item.isCheck;
+    checkbox.onchange = function () {
+      onChangeCheckbox(index);
+    };
+    container.appendChild(checkbox);
 
-    if(activeTaskEdit >= 0 && activeTaskEdit === index) {
-      const inputTaskEdit = document.createElement('input');
-      inputTaskEdit.value = task.text;
-      inputTaskEdit.addEventListener('change', editTask);
-      inputTaskEdit.addEventListener('blur', doneEditTask);
-      taskBlock.appendChild(inputTaskEdit);
+    if (index === activeEditTask) {
+      const inputTask = document.createElement('input');
+      inputTask.type = 'text';
+      inputTask.value = item.text;
+      inputTask.addEventListener('change', updateTaskText);
+      inputTask.addEventListener('blur', doneEditTask);
+      container.appendChild(inputTask);
     } else {
-      const text = document.createElement('span');
-      text.innerText = task.text;
-      text.className = task.isCheck ? 'done-task-text' : 'text-task';
-      taskBlock.appendChild(text);
+      const text = document.createElement('p');
+      text.innerText = item.text;
+      text.className = item.isCheck ? 'text-task done-text' : 'text-task';
+      container.appendChild(text);
     }
 
-    if(!task.isCheck) {
-      if(activeTaskEdit >= 0 && activeTaskEdit === index) {
-        const buttonDoneEdit = document.createElement('img');
-        buttonDoneEdit.src = 'images/done.svg';
-        buttonDoneEdit.onclick = function() {
+    if(!item.isCheck) {
+      if (index === activeEditTask) {
+        const imageDone = document.createElement('img');
+        imageDone.src = 'images/done.svg';
+        imageDone.onclick = function () {
           doneEditTask();
-        }
-        taskBlock.appendChild(buttonDoneEdit);
+        };
+        container.appendChild(imageDone);
       } else {
-        const buttonEdit = document.createElement('img');
-        buttonEdit.src = 'images/edit.svg';
-        buttonEdit.onclick = function() {
-          activeTaskEdit = index;
+        const imageEdit = document.createElement('img');
+        imageEdit.src = 'images/edit.svg';
+        imageEdit.onclick = function () {
+          activeEditTask = index;
           render();
-        }
-        taskBlock.appendChild(buttonEdit);
+        };
+        container.appendChild(imageEdit);
       }
-  
-      const buttonDelete = document.createElement('img');
-      buttonDelete.src = 'images/close.svg';
-      buttonDelete.onclick = function() {
-        deleteTask(index);
+      
+      const imageDelete= document.createElement('img');
+      imageDelete.src = 'images/close.svg';
+      imageDelete.onclick = function () {
+        onDeleteTask(index);
       }
-      taskBlock.appendChild(buttonDelete);
+      container.appendChild(imageDelete);
     }
 
-    parentBlock.appendChild(taskBlock);
+    content.appendChild(container);
   });
 }
 
-function addNewTask() {
-  arrayValues.push({text: value, isCheck: false});
-  // localStorage.setItem('tasks', JSON.stringify(arrayValues));
-  input.value = '';
-  value = '';
+onChangeCheckbox = async (index) => {
+  allTasks[index].isCheck = !allTasks[index].isCheck;
+  await fetch('http://localhost:8000/updateTask', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json;charset=utf-8',
+      'Access-Control-Allow-Origin': '*'
+    },
+    body: JSON.stringify(allTasks[index])
+  });
+  localStorage.setItem('tasks', JSON.stringify(allTasks));
   render();
 }
 
-function changeValue(e) {
-	value = e.target.value;
-}
-
-function changeCheckbox(index) {
-  arrayValues[index].isCheck = !arrayValues[index].isCheck;
-  // localStorage.setItem('tasks', JSON.stringify(arrayValues));
-  render(); 
-}
-
-function editTask(e) {
-  arrayValues[activeTaskEdit].text = e.target.value; 
-}
-
-function deleteTask(index) {
-  arrayValues.splice(index, 1);
-  // localStorage.setItem('tasks', JSON.stringify(arrayValues));
+onDeleteTask = async (index) => {
+  await fetch(`http://localhost:8000/deleteTask?_id=${allTasks[index]._id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json;charset=utf-8',
+      'Access-Control-Allow-Origin': '*'
+    }
+  });
+  allTasks.splice(index, 1);
+  localStorage.setItem('tasks', JSON.stringify(allTasks));
   render();
 }
 
-function doneEditTask() {
-  activeTaskEdit = null;
-  // localStorage.setItem('tasks', JSON.stringify(arrayValues));
+updateTaskText = (event) => {
+  allTasks[activeEditTask].text = event.target.value;
+  localStorage.setItem('tasks', JSON.stringify(allTasks));
+  render();
+}
+
+doneEditTask = async() => {
+  await fetch('http://localhost:8000/updateTask', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json;charset=utf-8',
+      'Access-Control-Allow-Origin': '*'
+    },
+    body: JSON.stringify(allTasks[activeEditTask])
+  });
+  activeEditTask = null;
   render();
 }
